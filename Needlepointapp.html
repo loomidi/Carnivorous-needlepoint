@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="NeedlePointApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AngularJS & Paper.js Needlepoint</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- AngularJS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+
+    <!-- Paper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Homemade+Apple&display=swap" rel="stylesheet">
+
+    <style>
+        body { background-color: #f0e8d9; }
+        .font-stitch { font-family: 'Homemade Apple', cursive; }
+
+        .embroidery-hoop {
+            background-color: #d2b48c;
+            border-radius: 50%;
+            padding: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 0 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .fabric-container {
+            background-color: #f5f5dc;
+            border-radius: 50%;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+        
+        #stitchCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .thread-bobbin {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .thread-bobbin.selected {
+            transform: scale(1.15);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4" ng-controller="StitchController as ctrl">
+
+    <div class="w-full max-w-lg mx-auto flex flex-col items-center">
+        <header class="text-center mb-4">
+            <h1 class="text-4xl md:text-5xl font-stitch text-gray-700">Paper Needlepoint</h1>
+            <p class="text-gray-500 mt-2">Select a thread and stitch the pattern!</p>
+        </header>
+        
+        <!-- Embroidery Hoop with Paper.js Canvas -->
+        <div class="embroidery-hoop w-full">
+            <div class="fabric-container">
+                <!-- The custom directive connects Angular to this canvas -->
+                <canvas id="stitchCanvas" paper-canvas></canvas>
+            </div>
+        </div>
+
+        <!-- Thread Palette -->
+        <div class="mt-6 w-full">
+            <h2 class="text-center text-2xl font-stitch text-gray-600 mb-3">Threads</h2>
+            <div class="flex items-center justify-center flex-wrap gap-4">
+                <div 
+                    ng-repeat="(key, color) in ctrl.palette"
+                    ng-click="ctrl.selectThread(key)"
+                    class="thread-bobbin w-16 h-16 rounded-full border-4 cursor-pointer flex items-center justify-center"
+                    ng-class="{'selected': key === ctrl.currentThreadKey}"
+                    ng-style="{'background-color': color, 'border-color': ctrl.lightenColor(color, 40) }">
+                    <span class="font-bold text-white text-shadow">{{ key.toUpperCase() }}</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- AngularJS Application Logic -->
+    <script>
+        const app = angular.module('NeedlePointApp', []);
+
+        app.controller('StitchController', ['$scope', function($scope) {
+            const vm = this;
+
+            vm.palette = {
+                'p': '#a21caf', // Plum
+                'b': '#3b82f6', // Blue
+                'g': '#16a34a', // Green
+                'l': '#4ade80', // Light Green
+                'k': '#1f2937'  // Black (outline)
+            };
+
+            vm.pattern = [
+                ['','','','','','k','k','k','k','k','','','','','',''],
+                ['','','','','k','p','p','p','p','p','k','','','','',''],
+                ['','','','k','p','p','b','b','b','p','p','k','','','',''],
+                ['','','','k','p','b','b','b','b','b','p','k','k','k','',''],
+                ['','k','k','p','b','b','k','k','b','b','p','p','p','k','',''],
+                ['k','l','k','p','p','b','b','b','b','b','p','p','p','k','',''],
+                ['k','g','l','k','p','p','p','p','p','p','p','p','k','','',''],
+                ['k','g','g','l','k','k','p','p','p','k','k','k','','','',''],
+                ['','k','g','g','g','l','k','k','k','l','g','k','','','',''],
+                ['','','k','g','l','g','g','g','l','g','g','k','','','',''],
+                ['','','','k','g','l','g','g','l','g','k','','','k','k',''],
+                ['','','k','g','g','l','g','l','g','k','','','k','p','k',''],
+                ['','k','l','g','l','k','k','k','','','k','p','b','k',''],
+                ['','','','k','g','k','k','p','k','k','k','p','b','k','',''],
+                ['','','','','k','k','k','p','b','p','k','k','k','','',''],
+                ['','','','','','','k','k','k','k','','','','','','']
+            ];
+
+            vm.currentThreadKey = 'k'; // Start with black
+            $scope.currentThreadColor = () => vm.palette[vm.currentThreadKey];
+
+            vm.selectThread = (key) => {
+                vm.currentThreadKey = key;
+            };
+
+            // Utility to lighten border colors of bobbins
+            vm.lightenColor = (hex, percent) => {
+                let r = parseInt(hex.slice(1, 3), 16),
+                    g = parseInt(hex.slice(3, 5), 16),
+                    b = parseInt(hex.slice(5, 7), 16);
+                r = Math.min(255, r + Math.floor(r * (percent / 100)));
+                g = Math.min(255, g + Math.floor(g * (percent / 100)));
+                b = Math.min(255, b + Math.floor(b * (percent / 100)));
+                return `rgb(${r},${g},${b})`;
+            };
+        }]);
+
+        // Custom Directive to integrate Paper.js with AngularJS
+        app.directive('paperCanvas', ['$rootScope', function($rootScope) {
+            return {
+                restrict: 'A',
+                link: function(scope, element, attrs) {
+                    paper.setup(element[0]);
+                    
+                    const pattern = scope.ctrl.pattern;
+                    const gridSize = 16;
+                    const cellSize = paper.view.size.width / gridSize;
+                    
+                    const stitchesLayer = new paper.Layer(); // For user stitches
+                    const guideLayer = new paper.Layer(); // For the pattern guide
+                    
+                    // --- Draw Pattern Guide ---
+                    guideLayer.activate();
+                    for (let y = 0; y < gridSize; y++) {
+                        for (let x = 0; x < gridSize; x++) {
+                            const key = pattern[y][x];
+                            if (key) {
+                                const rect = new paper.Path.Rectangle({
+                                    point: [x * cellSize, y * cellSize],
+                                    size: [cellSize, cellSize],
+                                    fillColor: scope.ctrl.palette[key],
+                                    opacity: 0.25
+                                });
+                            }
+                        }
+                    }
+
+                    // --- Draw Grid Lines ---
+                    for (let i = 0; i <= gridSize; i++) {
+                        // Vertical lines
+                        new paper.Path.Line({
+                            from: [i * cellSize, 0],
+                            to: [i * cellSize, paper.view.size.height],
+                            strokeColor: 'rgba(0,0,0,0.1)'
+                        });
+                        // Horizontal lines
+                        new paper.Path.Line({
+                            from: [0, i * cellSize],
+                            to: [paper.view.size.width, i * cellSize],
+                            strokeColor: 'rgba(0,0,0,0.1)'
+                        });
+                    }
+
+                    stitchesLayer.activate(); // Switch to the layer for drawing stitches
+                    const existingStitches = {}; // Track placed stitches
+
+                    paper.view.onMouseDown = function(event) {
+                        const col = Math.floor(event.point.x / cellSize);
+                        const row = Math.floor(event.point.y / cellSize);
+
+                        if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) return;
+
+                        const stitchKey = `${col}-${row}`;
+                        const patternKey = pattern[row][col];
+                        
+                        // Only allow stitching where the pattern indicates
+                        if (!patternKey) return; 
+
+                        // Remove old stitch if it exists
+                        if(existingStitches[stitchKey]){
+                           existingStitches[stitchKey].remove();
+                        }
+
+                        // Create the "X" stitch
+                        const color = scope.ctrl.palette[scope.ctrl.currentThreadKey];
+                        const group = new paper.Group();
+
+                        // First diagonal
+                        const line1 = new paper.Path.Line({
+                            from: [col * cellSize + (cellSize * 0.1), row * cellSize + (cellSize * 0.1)],
+                            to: [col * cellSize + (cellSize * 0.9), row * cellSize + (cellSize * 0.9)],
+                        });
+                        // Second diagonal
+                        const line2 = new paper.Path.Line({
+                            from: [col * cellSize + (cellSize * 0.9), row * cellSize + (cellSize * 0.1)],
+                            to: [col * cellSize + (cellSize * 0.1), row * cellSize + (cellSize * 0.9)],
+                        });
+                        
+                        group.addChildren([line1, line2]);
+                        group.strokeColor = color;
+                        group.strokeWidth = Math.max(2, cellSize / 8);
+                        group.strokeCap = 'round';
+                        
+                        existingStitches[stitchKey] = group;
+                        
+                        paper.view.draw(); // Redraw the view
+                    }
+                }
+            };
+        }]);
+    </script>
+</body>
+</html>
